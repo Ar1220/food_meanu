@@ -1322,9 +1322,9 @@ export default function App() {
           </button>
         </div>
         <button
-          className="cart-button"
+          className={`cart-button ${itemCount > 0 ? "cart-float" : ""}`}
           onClick={() => setCartOpen(true)}
-          aria-label={`Open cart, ${itemCount} items`}
+          aria-label={`Open cart, ${itemCount} items, ${inr(total)}`}
         >
           <Icon name="bag" size={18} />
           <span className="cart-count">{itemCount}</span>
@@ -1493,9 +1493,6 @@ export default function App() {
               DILITE<span>.</span>
             </button>
             <p>The late-night kitchen for a hungry Bidholi.</p>
-            <button className="admin-link" onClick={() => setPage("admin")}>
-              Kitchen dashboard <Icon name="arrow" size={14} />
-            </button>
           </div>
           <div>
             <h4>On the menu</h4>
