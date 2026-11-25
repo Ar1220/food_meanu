@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { api, type ApiOrder } from "./api";
+import { downloadReceipt, printReceipt } from "./receipt";
+
 type IconName =
   | "arrow"
   | "bag"
@@ -8,6 +11,7 @@ type IconName =
   | "clock"
   | "close"
   | "copy"
+  | "download"
   | "fire"
   | "menu"
   | "minus"
@@ -182,7 +186,7 @@ const fixedItem = (
   options: Partial<Pick<MenuItem, "tag" | "group" | "time" | "rating">> = {},
 ) => makeItem(id, name, category, description, price, imageKey, veg, productKind, options);
 
-const menuItems: MenuItem[] = [
+const seedMenuItems: MenuItem[] = [
   // Veg Pizza · Small 7" / Medium 10" / Large 13"
   fullPizza(
     "veg-pizza-cheese-onion",
@@ -1014,222 +1018,10 @@ const getItemAddons = (item: MenuItem) => {
   return item.veg ? addons.filter((addon) => addon.name !== "Extra chicken") : addons;
 };
 
-const menuItemsById = (...ids: string[]) =>
+const menuItemsById = (items: MenuItem[], ...ids: string[]) =>
   ids
-    .map((id) => menuItems.find((item) => item.id === id))
+    .map((id) => items.find((item) => item.id === id))
     .filter((item): item is MenuItem => Boolean(item));
-
-const kitchenOrderItem = (
-  itemId: string,
-  qty: number,
-  size = "",
-  selectedAddons: string[] = [],
-): KitchenOrderItem => {
-  const item = menuItems.find((menuItem) => menuItem.id === itemId);
-  if (!item) throw new Error(`Unknown kitchen menu item: ${itemId}`);
-
-  const sizePrice =
-    item.productKind === "full-pizza"
-      ? (sizes.find((option) => option.label === size)?.price ?? 0)
-      : 0;
-  const addonPrice = selectedAddons.reduce(
-    (total, addonName) => total + (addons.find((addon) => addon.name === addonName)?.price ?? 0),
-    0,
-  );
-
-  return {
-    itemId,
-    name: item.name,
-    image: item.image,
-    veg: item.veg,
-    qty,
-    size: size || undefined,
-    addons: selectedAddons,
-    unitPrice: item.price + sizePrice + addonPrice,
-  };
-};
-
-type KitchenOrderDraft = Omit<KitchenOrder, "subtotal" | "deliveryFee" | "discount" | "total"> & {
-  discount?: number;
-  deliveryFee?: number;
-};
-
-const createKitchenOrder = ({
-  items,
-  discount = 0,
-  deliveryFee,
-  ...order
-}: KitchenOrderDraft): KitchenOrder => {
-  const subtotal = items.reduce((total, item) => total + item.unitPrice * item.qty, 0);
-  const delivery = deliveryFee ?? (subtotal >= 399 ? 0 : 30);
-  return {
-    ...order,
-    items,
-    subtotal,
-    deliveryFee: delivery,
-    discount,
-    total: subtotal + delivery - discount,
-  };
-};
-
-const kitchenOrderFixtures: KitchenOrder[] = [
-  createKitchenOrder({
-    id: "DLT-2481",
-    createdAt: "11:46 PM",
-    elapsedMinutes: 22,
-    estimatedDelivery: "12:18 AM",
-    status: "New",
-    customer: {
-      name: "Aaryan Sharma",
-      phone: "+91 98765 01422",
-      hostel: "Hostel B",
-      room: "214",
-      landmark: "Blue door near the common room",
-    },
-    items: [
-      kitchenOrderItem("nonveg-pizza-chicken-bbq", 1, "Medium", ["Extra cheese"]),
-      kitchenOrderItem("garlic-cheese", 1),
-      kitchenOrderItem("drink-oreo-shake", 1),
-    ],
-    payment: { method: "Cash on delivery", status: "Pending" },
-    notes: "Extra chilli on the pizza. Please call when you reach the hostel gate.",
-  }),
-  createKitchenOrder({
-    id: "DLT-2483",
-    createdAt: "11:51 PM",
-    elapsedMinutes: 4,
-    estimatedDelivery: "12:24 AM",
-    status: "New",
-    customer: {
-      name: "Mehak Bansal",
-      phone: "+91 98111 00831",
-      hostel: "Girls Hostel",
-      room: "112",
-      landmark: "Reception desk",
-    },
-    items: [
-      kitchenOrderItem("veg-pizza-margherita", 1, "Small"),
-      kitchenOrderItem("taco-veg", 1),
-    ],
-    payment: { method: "UPI", status: "Paid" },
-  }),
-  createKitchenOrder({
-    id: "DLT-2480",
-    createdAt: "11:38 PM",
-    elapsedMinutes: 15,
-    estimatedDelivery: "12:11 AM",
-    status: "Preparing",
-    customer: {
-      name: "Ananya Verma",
-      phone: "+91 99271 55601",
-      hostel: "Girls Hostel",
-      room: "306",
-      landmark: "Beside the study hall",
-    },
-    items: [
-      kitchenOrderItem("veg-pizza-paneer-makhani", 1, "Large", ["Jalapeños"]),
-      kitchenOrderItem("drink-cold-coffee", 2),
-    ],
-    payment: { method: "UPI", status: "Paid" },
-    notes: "No onion, please.",
-  }),
-  createKitchenOrder({
-    id: "DLT-2478",
-    createdAt: "11:30 PM",
-    elapsedMinutes: 23,
-    estimatedDelivery: "12:03 AM",
-    status: "Preparing",
-    customer: {
-      name: "Rohan Sethi",
-      phone: "+91 88609 72684",
-      hostel: "Hostel A",
-      room: "039",
-      landmark: "Ground-floor stairs",
-    },
-    items: [
-      kitchenOrderItem("mania-veg-double-combo", 1),
-      kitchenOrderItem("side-masala-fries", 1),
-    ],
-    discount: 30,
-    payment: { method: "Cash on delivery", status: "Pending" },
-    notes: "Keep the combo boxes separate.",
-  }),
-  createKitchenOrder({
-    id: "DLT-2479",
-    createdAt: "11:27 PM",
-    elapsedMinutes: 26,
-    estimatedDelivery: "12:00 AM",
-    status: "Out for delivery",
-    customer: {
-      name: "Dev Mehta",
-      phone: "+91 74560 12876",
-      hostel: "Hostel C",
-      room: "118",
-      landmark: "Near the basketball court",
-    },
-    items: [
-      kitchenOrderItem("burger-chicken", 2),
-      kitchenOrderItem("side-french-fries", 1),
-      kitchenOrderItem("drink-cold-drink-large", 2),
-    ],
-    payment: { method: "Cash on delivery", status: "Pending" },
-  }),
-  createKitchenOrder({
-    id: "DLT-2477",
-    createdAt: "11:14 PM",
-    elapsedMinutes: 38,
-    estimatedDelivery: "11:47 PM",
-    status: "Delivered",
-    customer: {
-      name: "Ishita Kapoor",
-      phone: "+91 97560 44002",
-      hostel: "Day Scholar",
-      room: "Gate pickup",
-      landmark: "Bidholi main gate",
-    },
-    items: [
-      kitchenOrderItem("nonveg-pizza-pepperoni", 1, "Medium", ["Jalapeños"]),
-      kitchenOrderItem("pasta-red-nonveg", 1),
-    ],
-    payment: { method: "UPI", status: "Paid" },
-  }),
-  createKitchenOrder({
-    id: "DLT-2472",
-    createdAt: "10:49 PM",
-    elapsedMinutes: 63,
-    estimatedDelivery: "11:22 PM",
-    status: "Delivered",
-    customer: {
-      name: "Kabir Jain",
-      phone: "+91 98977 23018",
-      hostel: "Hostel D",
-      room: "205",
-      landmark: "East wing lobby",
-    },
-    items: [
-      kitchenOrderItem("roll-paneer", 2),
-      kitchenOrderItem("drink-strawberry-shake", 2),
-    ],
-    payment: { method: "Cash on delivery", status: "Paid" },
-  }),
-  createKitchenOrder({
-    id: "DLT-2468",
-    createdAt: "10:31 PM",
-    elapsedMinutes: 81,
-    estimatedDelivery: "11:04 PM",
-    status: "Cancelled",
-    customer: {
-      name: "Naman Dutta",
-      phone: "+91 70170 08533",
-      hostel: "Hostel B",
-      room: "119",
-      landmark: "Main entrance",
-    },
-    items: [kitchenOrderItem("veg-pizza-cheese-corn", 1, "Small")],
-    payment: { method: "UPI", status: "Paid" },
-    notes: "Customer cancelled before preparation.",
-  }),
-];
 
 const activeKitchenStatuses: KitchenOrderStatus[] = [
   "New",
@@ -1298,6 +1090,13 @@ function Icon({
       <>
         <rect x="8" y="8" width="10" height="10" rx="2" />
         <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+      </>
+    ),
+    download: (
+      <>
+        <path d="M12 3v11" />
+        <path d="m7.5 10 4.5 4.5L16.5 10" />
+        <path d="M4 18.5h16" />
       </>
     ),
     fire: (
@@ -1385,9 +1184,23 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [toast, setToast] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [customer, setCustomer] = useState({
+    name: "",
+    phone: "",
+    hostel: "Hostel B",
+    room: "",
+    landmark: "",
+  });
   const [orderNumber, setOrderNumber] = useState("DLT-2481");
   const [addItemOpen, setAddItemOpen] = useState(false);
-  const [kitchenOrders, setKitchenOrders] = useState<KitchenOrder[]>(kitchenOrderFixtures);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(seedMenuItems);
+  const [kitchenOrders, setKitchenOrders] = useState<KitchenOrder[]>([]);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [placeError, setPlaceError] = useState("");
+  const [lastOrderTotal, setLastOrderTotal] = useState(0);
+  const [lastOrderEta, setLastOrderEta] = useState("—");
+  const [lastOrder, setLastOrder] = useState<ApiOrder | null>(null);
+  const [dataNote, setDataNote] = useState("");
 
   const subtotal = cart.reduce((total, item) => total + item.unitPrice * item.qty, 0);
   const delivery = subtotal === 0 || subtotal >= 399 ? 0 : 30;
@@ -1431,6 +1244,42 @@ export default function App() {
     const timer = window.setTimeout(() => setToast(""), 3200);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  // Kitchen orders live in MongoDB — pull them and keep them in sync.
+  const refreshKitchenOrders = async () => {
+    try {
+      const orders = await api.orders(120);
+      setKitchenOrders(orders as unknown as KitchenOrder[]);
+      setDataNote("");
+    } catch {
+      setDataNote("Kitchen API offline · showing the last known orders");
+    }
+  };
+
+  // Menu comes from the database; the bundled catalogue is only a fallback.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .menu()
+      .then(({ items }) => {
+        if (!cancelled && items.length) setMenuItems(items as unknown as MenuItem[]);
+      })
+      .catch(() => {
+        if (!cancelled) setDataNote("Menu API offline · showing the cached catalogue");
+      });
+    void refreshKitchenOrders();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // While the kitchen dashboard is open, poll so new website orders appear live.
+  useEffect(() => {
+    if (page !== "admin") return;
+    void refreshKitchenOrders();
+    const timer = window.setInterval(() => void refreshKitchenOrders(), 5000);
+    return () => window.clearInterval(timer);
+  }, [page]);
 
   const addToCart = (
     item: MenuItem,
@@ -1490,10 +1339,49 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const placeOrder = () => {
-    setOrderNumber(`DLT-${Math.floor(2000 + Math.random() * 7000)}`);
-    setPage("success");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const placeOrder = async (details: { payment: string; notes: string; coupon: string }) => {
+    if (placingOrder || !cart.length) return;
+    setPlacingOrder(true);
+    setPlaceError("");
+
+    try {
+      const order = await api.createOrder({
+        customer: {
+          name: (customer.name || customerName).trim(),
+          phone: customer.phone.trim(),
+          hostel: customer.hostel,
+          room: customer.room.trim(),
+          landmark: customer.landmark.trim(),
+        },
+        items: cart.map((line) => ({
+          itemId: line.id,
+          qty: line.qty,
+          size: line.size || undefined,
+          addons: line.addons,
+        })),
+        notes: details.notes,
+        payment: { method: details.payment === "UPI" ? "UPI" : "Cash on delivery" },
+        coupon: details.coupon,
+      });
+
+      setOrderNumber(order.id);
+      setLastOrderTotal(order.total);
+      setLastOrderEta(order.estimatedDelivery);
+      setLastOrder(order);
+      try {
+        window.localStorage.setItem("dilite:phone", order.customer.phone.replace(/\D/g, ""));
+      } catch {
+        /* private mode — history just won't be personalised */
+      }
+      setCart([]);
+      setPage("success");
+      await refreshKitchenOrders();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      setPlaceError(error instanceof Error ? error.message : "Could not place the order");
+    } finally {
+      setPlacingOrder(false);
+    }
   };
 
   const openKitchenDashboard = () => {
@@ -1503,23 +1391,30 @@ export default function App() {
   };
 
   const advanceKitchenOrder = (orderId: string) => {
-    setKitchenOrders((current) =>
-      current.map((order) =>
-        order.id === orderId && nextKitchenStatus[order.status]
-          ? { ...order, status: nextKitchenStatus[order.status] }
-          : order,
-      ),
+    const current = kitchenOrders.find((order) => order.id === orderId);
+    const next = current ? nextKitchenStatus[current.status] : undefined;
+    if (!next) return;
+
+    setKitchenOrders((orders) =>
+      orders.map((order) => (order.id === orderId ? { ...order, status: next } : order)),
     );
+    api.setStatus(orderId, next).catch(() => void refreshKitchenOrders());
   };
 
   const markKitchenOrderPaid = (orderId: string) => {
-    setKitchenOrders((current) =>
-      current.map((order) =>
-        order.id === orderId
-          ? { ...order, payment: { ...order.payment, status: "Paid" } }
-          : order,
+    setKitchenOrders((orders) =>
+      orders.map((order) =>
+        order.id === orderId ? { ...order, payment: { ...order.payment, status: "Paid" } } : order,
       ),
     );
+    api.setPayment(orderId, "Paid").catch(() => void refreshKitchenOrders());
+  };
+
+  const toggleItemAvailability = (itemId: string, available: boolean) => {
+    setMenuItems((items) =>
+      items.map((item) => (item.id === itemId ? { ...item, available } : item)),
+    );
+    api.setAvailability(itemId, available).catch(() => void refreshKitchenOrders());
   };
 
   if (page === "checkout") {
@@ -1529,8 +1424,10 @@ export default function App() {
         total={total}
         subtotal={subtotal}
         delivery={delivery}
-        customerName={customerName}
-        setCustomerName={setCustomerName}
+        customer={customer}
+        setCustomer={setCustomer}
+        placing={placingOrder}
+        error={placeError}
         onBack={browseMenu}
         onPlaceOrder={placeOrder}
       />
@@ -1540,7 +1437,9 @@ export default function App() {
     return (
       <Success
         orderNumber={orderNumber}
-        total={total}
+        total={lastOrderTotal || total}
+        eta={lastOrderEta}
+        order={lastOrder}
         onTrack={() => setPage("tracking")}
         onMenu={browseMenu}
       />
@@ -1550,7 +1449,6 @@ export default function App() {
     return (
       <Tracking
         orderNumber={orderNumber}
-        total={total}
         onMenu={browseMenu}
         onHistory={() => setPage("history")}
       />
@@ -1560,12 +1458,26 @@ export default function App() {
     return (
       <OrderHistory
         onMenu={browseMenu}
-        onReorder={() => {
-          const favouritePizza = menuItems.find((item) => item.id === "nonveg-pizza-chicken-bbq");
-          const favouriteSide = menuItems.find((item) => item.id === "garlic-cheese");
-          if (favouritePizza) addToCart(favouritePizza, "Medium");
-          if (favouriteSide) addToCart(favouriteSide);
-          setToast("Your favourite order is back in the cart");
+        items={menuItems}
+        onTrack={(orderId) => {
+          setOrderNumber(orderId);
+          setPage("tracking");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onReorder={(order) => {
+          order.items.forEach((line) => {
+            const dish =
+              menuItems.find((item) => item.id === line.itemId) ??
+              seedMenuItems.find((item) => item.id === line.itemId);
+            if (!dish) return;
+            addToCart(
+              dish,
+              line.size || (dish.productKind === "full-pizza" ? "Small" : ""),
+              line.addons,
+              line.qty,
+            );
+          });
+          setToast("Your old order is back in the cart");
         }}
       />
     );
@@ -1579,6 +1491,8 @@ export default function App() {
         addItemOpen={addItemOpen}
         setAddItemOpen={setAddItemOpen}
         orders={kitchenOrders}
+        items={menuItems}
+        onToggleAvailability={toggleItemAvailability}
         onAdvanceOrder={advanceKitchenOrder}
         onMarkOrderPaid={markKitchenOrderPaid}
       />
@@ -2273,8 +2187,10 @@ function Checkout({
   total,
   subtotal,
   delivery,
-  customerName,
-  setCustomerName,
+  customer,
+  setCustomer,
+  placing,
+  error,
   onBack,
   onPlaceOrder,
 }: {
@@ -2282,15 +2198,28 @@ function Checkout({
   total: number;
   subtotal: number;
   delivery: number;
-  customerName: string;
-  setCustomerName: (value: string) => void;
+  customer: { name: string; phone: string; hostel: string; room: string; landmark: string };
+  setCustomer: React.Dispatch<
+    React.SetStateAction<{
+      name: string;
+      phone: string;
+      hostel: string;
+      room: string;
+      landmark: string;
+    }>
+  >;
+  placing: boolean;
+  error: string;
   onBack: () => void;
-  onPlaceOrder: () => void;
+  onPlaceOrder: (details: { payment: string; notes: string; coupon: string }) => void;
 }) {
   const [payment, setPayment] = useState("COD");
   const [scheduled, setScheduled] = useState(false);
   const [coupon, setCoupon] = useState("");
   const [couponStatus, setCouponStatus] = useState("");
+  const [notes, setNotes] = useState("");
+  const setField = (field: keyof typeof customer) => (value: string) =>
+    setCustomer((current) => ({ ...current, [field]: value }));
   return (
     <main className="checkout-page">
       <nav className="checkout-nav">
@@ -2318,14 +2247,23 @@ function Checkout({
               <Field
                 label="Your name"
                 placeholder="e.g. Aaryan Sharma"
-                value={customerName}
-                onChange={setCustomerName}
+                value={customer.name}
+                onChange={setField("name")}
               />
-              <Field label="Phone number" prefix="+91" placeholder="98765 43210" mono />
+              <Field
+                label="Phone number"
+                prefix="+91"
+                placeholder="98765 43210"
+                mono
+                value={customer.phone}
+                onChange={setField("phone")}
+              />
             </div>
             <div className="field-grid address-grid">
               <SelectField
                 label="Hostel"
+                value={customer.hostel}
+                onChange={setField("hostel")}
                 options={[
                   "Choose your hostel",
                   "Hostel A",
@@ -2336,12 +2274,19 @@ function Checkout({
                   "Other",
                 ]}
               />
-              <Field label="Room number" placeholder="e.g. B-214" />
+              <Field
+                label="Room number"
+                placeholder="e.g. B-214"
+                value={customer.room}
+                onChange={setField("room")}
+              />
             </div>
             <Field
               label="Landmark / delivery note"
               placeholder="Near the common room, blue door"
               helper="A tiny clue means a much faster drop-off."
+              value={customer.landmark}
+              onChange={setField("landmark")}
             />
             <div className="schedule-switch">
               <button className={!scheduled ? "selected" : ""} onClick={() => setScheduled(false)}>
@@ -2422,6 +2367,8 @@ function Checkout({
               textarea
               placeholder="Extra chilli, no onion, call on arrival..."
               helper="We’ll pass this straight to the kitchen."
+              value={notes}
+              onChange={setNotes}
             />
           </CheckoutStep>
         </div>
@@ -2469,13 +2416,20 @@ function Checkout({
               <small>Kitchen is taking orders</small>
             </span>
           </div>
+          {error && <p className="coupon-status">{error}</p>}
           <button
             className="button primary place-order"
-            disabled={!cart.length}
-            onClick={onPlaceOrder}
+            disabled={!cart.length || placing}
+            onClick={() => onPlaceOrder({ payment, notes, coupon })}
           >
-            Place order <span>— {inr(total)}</span>
-            <Icon name="arrow" size={18} />
+            {placing ? (
+              "Sending to the kitchen…"
+            ) : (
+              <>
+                Place order <span>— {inr(total)}</span>
+                <Icon name="arrow" size={18} />
+              </>
+            )}
           </button>
           <p className="whatsapp-caption">You'll get a confirmation on WhatsApp.</p>
         </aside>
@@ -2526,7 +2480,11 @@ function Field({
   textarea?: boolean;
 }) {
   const field = textarea ? (
-    <textarea placeholder={placeholder} />
+    <textarea
+      value={value}
+      onChange={(event) => onChange?.(event.target.value)}
+      placeholder={placeholder}
+    />
   ) : (
     <input
       className={mono ? "mono" : ""}
@@ -2547,12 +2505,22 @@ function Field({
   );
 }
 
-function SelectField({ label, options }: { label: string; options: string[] }) {
+function SelectField({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  value?: string;
+  onChange?: (value: string) => void;
+}) {
   return (
     <label className="form-field">
       <span>{label}</span>
       <div>
-        <select>
+        <select value={value} onChange={(event) => onChange?.(event.target.value)}>
           {options.map((option) => (
             <option key={option}>{option}</option>
           ))}
@@ -2566,11 +2534,15 @@ function SelectField({ label, options }: { label: string; options: string[] }) {
 function Success({
   orderNumber,
   total,
+  eta,
+  order,
   onTrack,
   onMenu,
 }: {
   orderNumber: string;
   total: number;
+  eta: string;
+  order: ApiOrder | null;
   onTrack: () => void;
   onMenu: () => void;
 }) {
@@ -2595,9 +2567,7 @@ function Success({
         <div className="success-eta">
           <div>
             <span>Arriving by</span>
-            <strong>
-              12:18 <small>AM</small>
-            </strong>
+            <strong>{eta}</strong>
           </div>
           <i>
             <i />
@@ -2614,6 +2584,16 @@ function Success({
             Back to menu
           </button>
         </div>
+        {order && (
+          <div className="receipt-actions">
+            <button className="button secondary" onClick={() => downloadReceipt(order)}>
+              <Icon name="download" size={16} /> Download receipt
+            </button>
+            <button className="button ghost" onClick={() => printReceipt(order)}>
+              <Icon name="download" size={16} /> Print / save PDF
+            </button>
+          </div>
+        )}
         <p className="success-total">
           Order total <b>{inr(total)}</b>
         </p>
@@ -2624,21 +2604,68 @@ function Success({
 
 function Tracking({
   orderNumber,
-  total,
   onMenu,
   onHistory,
 }: {
   orderNumber: string;
-  total: number;
   onMenu: () => void;
   onHistory: () => void;
 }) {
-  const steps = [
-    ["Order received", "11:46 PM"],
-    ["In the kitchen", "11:48 PM"],
-    ["Out for delivery", "—"],
-    ["Delivered", "—"],
-  ];
+  const [query, setQuery] = useState(orderNumber);
+  const [order, setOrder] = useState<ApiOrder | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+
+  const load = async (rawValue: string) => {
+    const code = rawValue.trim().toUpperCase().replace(/^#/, "");
+    if (!code) return;
+    setLoading(true);
+    setError("");
+    try {
+      const found = await api.order(code.startsWith("DLT-") ? code : `DLT-${code}`);
+      setOrder(found);
+      setUpdatedAt(new Date());
+    } catch {
+      setOrder(null);
+      setError(`No order found for “${code}”. Check the number on your receipt.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load(orderNumber);
+  }, [orderNumber]);
+
+  // Live updates while the kitchen moves the order along.
+  useEffect(() => {
+    if (!order) return;
+    const timer = window.setInterval(() => void load(order.id), 10000);
+    return () => window.clearInterval(timer);
+  }, [order?.id]);
+
+  const stages: KitchenOrderStatus[] = ["New", "Preparing", "Out for delivery", "Delivered"];
+  const reached = order ? stages.indexOf(order.status) : -1;
+  const stepTitle: Record<string, string> = {
+    New: "Order received",
+    Preparing: "In the kitchen",
+    "Out for delivery": "Out for delivery",
+    Delivered: "Delivered",
+  };
+  const timeFor = (status: KitchenOrderStatus) => {
+    const entry = order?.statusHistory?.find((item) => item.status === status);
+    if (!entry) return "—";
+    return new Date(entry.at)
+      .toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+      .toUpperCase();
+  };
+
   return (
     <main className="dark-page tracking-page">
       <SimpleNav onMenu={onMenu} onHistory={onHistory} />
@@ -2648,44 +2675,108 @@ function Tracking({
             <i /> LIVE ORDER TRACKING
           </p>
           <h1>We’re on it.</h1>
-          <p>
-            Order <b>#{orderNumber}</b> · Your late-night fix is being made fresh.
-          </p>
+          <p>Enter the order number from your receipt — it never changes, so you can check it any time.</p>
         </header>
-        <section className="tracking-card">
-          <div className="tracking-card-top">
-            <div>
-              <span>ESTIMATED DELIVERY</span>
-              <strong>12:18 AM</strong>
-            </div>
-            <div>
-              <span>ORDER TOTAL</span>
-              <strong>{inr(total)}</strong>
-            </div>
-          </div>
-          <div className="tracking-timeline">
-            {steps.map(([title, time], index) => (
-              <div
-                key={title}
-                className={`track-step ${index < 2 ? "complete" : ""} ${index === 1 ? "current" : ""}`}
-              >
-                <div className="track-node">{index < 2 && <Icon name="check" size={14} />}</div>
-                <div>
-                  <b>{title}</b>
-                  <small>{time}</small>
-                </div>
+
+        <form
+          className="tracking-search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void load(query);
+          }}
+        >
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value.toUpperCase())}
+            placeholder="DLT-2482"
+            aria-label="Order number"
+            inputMode="text"
+          />
+          <button className="button primary" type="submit" disabled={loading}>
+            {loading ? "Checking…" : "Track order"}
+          </button>
+        </form>
+
+        {error && <p className="tracking-error">{error}</p>}
+
+        {order && (
+          <section className="tracking-card">
+            <div className="tracking-card-top">
+              <div>
+                <span>ORDER</span>
+                <strong>#{order.id}</strong>
               </div>
-            ))}
-          </div>
-          <div className="tracking-footer">
-            <span>
-              <i className="live-dot" /> Updated 12s ago
-            </span>
-            <button onClick={() => window.location.reload()}>Refresh</button>
-          </div>
-        </section>
+              <div>
+                <span>ESTIMATED DELIVERY</span>
+                <strong>{order.estimatedDelivery}</strong>
+              </div>
+              <div>
+                <span>ORDER TOTAL</span>
+                <strong>{inr(order.total)}</strong>
+              </div>
+            </div>
+
+            <div className="tracking-timeline">
+              {stages.map((stage, index) => (
+                <div
+                  key={stage}
+                  className={`track-step ${index <= reached ? "complete" : ""} ${
+                    index === reached ? "current" : ""
+                  }`}
+                >
+                  <div className="track-node">
+                    {index < reached && <Icon name="check" size={14} />}
+                  </div>
+                  <div>
+                    <b>{stepTitle[stage]}</b>
+                    <small>{timeFor(stage)}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {order.status === "Cancelled" && (
+              <p className="tracking-error">This order was cancelled. Call the kitchen if that looks wrong.</p>
+            )}
+
+            <div className="tracking-items">
+              {order.items.map((item) => (
+                <div key={`${item.itemId}-${item.size ?? ""}`}>
+                  <img src={item.image} alt="" />
+                  <span>
+                    <b>
+                      {item.qty} × {item.name}
+                    </b>
+                    <small>{[item.size, ...item.addons].filter(Boolean).join(" · ") || "Made fresh"}</small>
+                  </span>
+                  <strong>{inr(item.unitPrice * item.qty)}</strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="tracking-footer">
+              <span>
+                <i className="live-dot" />{" "}
+                {updatedAt
+                  ? `Updated ${updatedAt.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`
+                  : "Refreshing"}
+              </span>
+              <button onClick={() => void load(order.id)}>Refresh</button>
+            </div>
+
+            <div className="receipt-actions">
+              <button className="button secondary" onClick={() => downloadReceipt(order)}>
+                <Icon name="download" size={16} /> Download invoice
+              </button>
+              <button className="button ghost" onClick={() => printReceipt(order)}>
+                <Icon name="download" size={16} /> Print / save PDF
+              </button>
+            </div>
+          </section>
+        )}
+
         <div className="tracking-actions">
-          <a className="button secondary" href="tel:+919410000000">
+          <a className="button secondary" href="tel:+919****0000">
             <Icon name="phone" size={18} /> Call kitchen
           </a>
           <a className="button ghost whatsapp-button" href="https://wa.me/919410000000">
@@ -2711,8 +2802,62 @@ function SimpleNav({ onMenu, onHistory }: { onMenu: () => void; onHistory?: () =
   );
 }
 
-function OrderHistory({ onMenu, onReorder }: { onMenu: () => void; onReorder: () => void }) {
-  const [tab, setTab] = useState("Past");
+function OrderHistory({
+  onMenu,
+  onTrack,
+  onReorder,
+  items,
+}: {
+  onMenu: () => void;
+  onTrack: (orderId: string) => void;
+  onReorder: (order: ApiOrder) => void;
+  items: MenuItem[];
+}) {
+  const [tab, setTab] = useState("Active");
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [draft, setDraft] = useState(() => {
+    try {
+      return window.localStorage.getItem("dilite:phone") ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [query, setQuery] = useState(() => draft);
+  const [nonce, setNonce] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!query) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    api
+      .ordersForPhone(query)
+      .then((list) => {
+        if (!cancelled) setOrders(list);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load your orders right now.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query, nonce]);
+
+  const buckets: Record<string, (order: ApiOrder) => boolean> = {
+    Active: (order) => ["New", "Preparing", "Out for delivery"].includes(order.status),
+    Past: (order) => order.status === "Delivered",
+    Cancelled: (order) => order.status === "Cancelled",
+  };
+  const visible = orders.filter(buckets[tab]);
+
   return (
     <main className="dark-page history-page">
       <SimpleNav onMenu={onMenu} />
@@ -2721,6 +2866,33 @@ function OrderHistory({ onMenu, onReorder }: { onMenu: () => void; onReorder: ()
           <i /> A TASTE FOR GOOD DECISIONS
         </p>
         <h1>My orders.</h1>
+
+        <form
+          className="tracking-search history-phone"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const digits = draft.replace(/\D/g, "");
+            try {
+              window.localStorage.setItem("dilite:phone", digits);
+            } catch {
+              /* ignore */
+            }
+            setQuery(digits);
+            setNonce((value) => value + 1);
+          }}
+        >
+          <input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Phone number you ordered with"
+            aria-label="Phone number"
+            inputMode="tel"
+          />
+          <button className="button secondary" type="submit">
+            Load my orders
+          </button>
+        </form>
+
         <div className="history-tabs">
           {["Active", "Past", "Cancelled"].map((item) => (
             <button
@@ -2729,47 +2901,45 @@ function OrderHistory({ onMenu, onReorder }: { onMenu: () => void; onReorder: ()
               key={item}
             >
               {item}
-              {item === "Past" && <span>3</span>}
+              <span>{orders.filter(buckets[item]).length}</span>
             </button>
           ))}
         </div>
-        {tab === "Past" ? (
+
+        {error && <p className="tracking-error">{error}</p>}
+
+        {loading ? (
+          <p className="summary-empty">Loading your orders…</p>
+        ) : visible.length ? (
           <div className="history-list">
-            <HistoryCard
-              id="DLT-2481"
-              date="Today · 11:46 PM"
-              total="₹420"
-              status="Delivered"
-              images={menuItemsById("nonveg-pizza-chicken-bbq", "garlic-cheese")}
-              onReorder={onReorder}
-            />
-            <HistoryCard
-              id="DLT-1964"
-              date="27 Feb · 10:21 PM"
-              total="₹375"
-              status="Delivered"
-              images={menuItemsById("veg-pizza-margherita", "pasta-white-veg", "drink-oreo-shake")}
-              onReorder={onReorder}
-            />
-            <HistoryCard
-              id="DLT-1730"
-              date="21 Feb · 11:09 PM"
-              total="₹280"
-              status="Delivered"
-              images={menuItemsById("burger-chicken")}
-              onReorder={onReorder}
-            />
+            {visible.map((order) => (
+              <HistoryCard
+                key={order.id}
+                id={order.id}
+                date={`${new Date(order.createdAtISO).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                })} · ${order.createdAt}`}
+                total={inr(order.total)}
+                status={order.status}
+                images={menuItemsById(items, ...order.items.map((line) => line.itemId))}
+                onOpen={() => onTrack(order.id)}
+                onReorder={() => onReorder(order)}
+                onReceipt={() => downloadReceipt(order)}
+                onPrint={() => printReceipt(order)}
+              />
+            ))}
           </div>
         ) : (
           <div className="empty-history">
             <div>
               <Icon name="bag" size={34} />
             </div>
-            <h2>Nothing here right now.</h2>
+            <h2>{orders.length ? `No ${tab.toLowerCase()} orders.` : "No orders on this number yet."}</h2>
             <p>
-              {tab === "Active"
-                ? "Your next great decision will show up here."
-                : "No cancelled orders. A clean record."}
+              {orders.length
+                ? "Try another tab — your active, past and cancelled orders live here."
+                : "Place an order and it will show up here, tied to your phone number."}
             </p>
             <button className="button ghost" onClick={onMenu}>
               Browse menu
@@ -2787,14 +2957,20 @@ function HistoryCard({
   total,
   status,
   images,
+  onOpen,
   onReorder,
+  onReceipt,
+  onPrint,
 }: {
   id: string;
   date: string;
   total: string;
   status: string;
   images: MenuItem[];
+  onOpen: () => void;
   onReorder: () => void;
+  onReceipt: () => void;
+  onPrint: () => void;
 }) {
   return (
     <article className="history-card">
@@ -2807,15 +2983,24 @@ function HistoryCard({
         <div>
           <p>{date}</p>
           <h2>#{id}</h2>
-          <span className="status delivered">
+          <span className={`status ${status.toLowerCase().replace(/ /g, "-")}`}>
             <Icon name="check" size={12} /> {status}
           </span>
         </div>
       </div>
       <div className="history-card-end">
         <strong>{total}</strong>
-        <button className="button ghost" onClick={onReorder}>
-          Reorder <Icon name="arrow" size={15} />
+        <button className="button ghost" onClick={onOpen}>
+          Track <Icon name="arrow" size={15} />
+        </button>
+        <button className="button secondary" onClick={onReorder}>
+          Reorder
+        </button>
+        <button className="button ghost receipt-button" onClick={onReceipt}>
+          <Icon name="download" size={14} /> Invoice
+        </button>
+        <button className="button ghost receipt-button" onClick={onPrint}>
+          Print
         </button>
       </div>
     </article>
@@ -2829,6 +3014,8 @@ function Admin({
   addItemOpen,
   setAddItemOpen,
   orders,
+  items,
+  onToggleAvailability,
   onAdvanceOrder,
   onMarkOrderPaid,
 }: {
@@ -2838,6 +3025,8 @@ function Admin({
   addItemOpen: boolean;
   setAddItemOpen: (open: boolean) => void;
   orders: KitchenOrder[];
+  items: MenuItem[];
+  onToggleAvailability: (itemId: string, available: boolean) => void;
   onAdvanceOrder: (orderId: string) => void;
   onMarkOrderPaid: (orderId: string) => void;
 }) {
@@ -2872,7 +3061,7 @@ function Admin({
         <button className="exit-admin" onClick={onExit}>
           ← Exit dashboard
         </button>
-        <span className="admin-demo-note">Temporary kitchen data · resets on refresh</span>
+        <span className="admin-demo-note">Live from MongoDB · refreshes every 5s</span>
       </aside>
       <section className="admin-content">
         <header className="admin-topbar">
@@ -2903,7 +3092,13 @@ function Admin({
           />
         )}
         {view === "orders" && <LiveOrders orders={orders} onOpenOrder={setSelectedOrderId} />}
-        {view === "menu" && <AdminMenu onAdd={() => setAddItemOpen(true)} />}
+        {view === "menu" && (
+          <AdminMenu
+            items={items}
+            onToggleAvailability={onToggleAvailability}
+            onAdd={() => setAddItemOpen(true)}
+          />
+        )}
       </section>
       {addItemOpen && <AddItemDrawer onClose={() => setAddItemOpen(false)} />}
       {selectedOrder && (
@@ -3114,7 +3309,7 @@ function OrderRow({
 }) {
   return (
     <button className="admin-order-row" onClick={() => onOpenOrder(order.id)}>
-      <span className={`order-status-dot ${order.status.toLowerCase().replaceAll(" ", "-")}`} />
+      <span className={`order-status-dot ${order.status.toLowerCase().replace(/ /g, "-")}`} />
       <b>#{order.id}</b>
       <span>
         {order.customer.name}
@@ -3156,7 +3351,7 @@ function LiveOrders({
           ).length}{" "}
           orders being worked on
         </span>
-        <span className="demo-board-note">Temporary data · updates reset on refresh</span>
+        <span className="demo-board-note">Live from MongoDB · new orders appear automatically</span>
       </div>
       <div className="kanban">
         {activeKitchenStatuses.map((status) => {
@@ -3206,7 +3401,7 @@ function LiveOrders({
 }
 
 function StatusPill({ status }: { status: KitchenOrderStatus }) {
-  return <span className={`kitchen-pill status-${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>;
+  return <span className={`kitchen-pill status-${status.toLowerCase().replace(/ /g, "-")}`}>{status}</span>;
 }
 
 function PaymentPill({ payment }: { payment: KitchenOrder["payment"] }) {
@@ -3409,18 +3604,26 @@ function KitchenOrderDrawer({
   );
 }
 
-function AdminMenu({ onAdd }: { onAdd: () => void }) {
+function AdminMenu({
+  onAdd,
+  items,
+  onToggleAvailability,
+}: {
+  onAdd: () => void;
+  items: MenuItem[];
+  onToggleAvailability: (itemId: string, available: boolean) => void;
+}) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All categories");
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const visibleItems = useMemo(
     () =>
-      menuItems.filter((item) => {
+      items.filter((item) => {
         const matchesCategory = category === "All categories" || item.category === category;
         const searchable = `${item.name} ${item.description} ${item.category}`.toLowerCase();
         return matchesCategory && searchable.includes(query.trim().toLowerCase());
       }),
-    [category, query],
+    [category, query, items],
   );
 
   return (
@@ -3450,7 +3653,7 @@ function AdminMenu({ onAdd }: { onAdd: () => void }) {
         </button>
       </div>
       <p className="admin-result-count">
-        Showing {visibleItems.length} of {menuItems.length} menu items
+        Showing {visibleItems.length} of {items.length} menu items
       </p>
       <div className="item-table">
         <div className="table-head">
@@ -3482,9 +3685,10 @@ function AdminMenu({ onAdd }: { onAdd: () => void }) {
                 <strong>{inr(item.price)}</strong>
                 <button
                   className={`toggle ${isAvailable ? "on" : ""}`}
-                  onClick={() =>
-                    setAvailability((current) => ({ ...current, [item.id]: !isAvailable }))
-                  }
+                  onClick={() => {
+                    setAvailability((current) => ({ ...current, [item.id]: !isAvailable }));
+                    onToggleAvailability(item.id, !isAvailable);
+                  }}
                   aria-label={`Toggle availability for ${item.name}`}
                 >
                   <i />

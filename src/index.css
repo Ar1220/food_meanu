@@ -4634,3 +4634,88 @@ legend small {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---- tracking lookup, order lines, receipt + history additions ---- */
+.tracking-search {
+  display: flex;
+  gap: 10px;
+  max-width: 520px;
+  margin: 18px auto 0;
+}
+.tracking-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--cream, #f6f1ee);
+  font: inherit;
+  letter-spacing: 0.04em;
+}
+.tracking-search input:focus {
+  outline: none;
+  border-color: var(--ember, #ff6b2c);
+  box-shadow: 0 0 0 3px rgba(255, 107, 44, 0.16);
+}
+.tracking-search .button { white-space: nowrap; }
+.history-phone { margin: 6px 0 22px; }
+
+.tracking-error {
+  max-width: 520px;
+  margin: 14px auto 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(217, 74, 61, 0.45);
+  background: rgba(217, 74, 61, 0.12);
+  color: #ffb4a8;
+  font-size: 14px;
+  text-align: center;
+}
+
+.tracking-items {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0 4px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.tracking-items > div {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+.tracking-items img {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.tracking-items span { display: grid; }
+.tracking-items small { color: rgba(246, 241, 238, 0.55); font-size: 12px; }
+
+.receipt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.history-card-end { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.status.cancelled { color: #ffb4a8; }
+.status.new, .status.preparing, .status.out-for-delivery { color: var(--ember, #ff6b2c); }
+
+/* invoice buttons inside order-history cards */
+.history-card-end .receipt-button {
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.history-card-end .receipt-button:hover {
+  border-color: var(--ember, #ff6b2c);
+  color: var(--ember, #ff6b2c);
+}

@@ -1,0 +1,80 @@
+[
+  {
+    "name": "Veg Pizza",
+    "slug": "veg-pizza",
+    "description": "Small 7\" / Medium 10\" / Large 13\"",
+    "order": 0
+  },
+  {
+    "name": "Non-Veg Pizza",
+    "slug": "non-veg-pizza",
+    "description": "Small 7\" / Medium 10\" / Large 13\"",
+    "order": 1
+  },
+  {
+    "name": "Pizza Mania",
+    "slug": "pizza-mania",
+    "description": "Regular 7\" pizzas · combos save you money",
+    "order": 2
+  },
+  {
+    "name": "Pasta",
+    "slug": "pasta",
+    "description": null,
+    "order": 3
+  },
+  {
+    "name": "Burgers",
+    "slug": "burgers",
+    "description": null,
+    "order": 4
+  },
+  {
+    "name": "Grilled Sandwich",
+    "slug": "grilled-sandwich",
+    "description": null,
+    "order": 5
+  },
+  {
+    "name": "Rolls",
+    "slug": "rolls",
+    "description": null,
+    "order": 6
+  },
+  {
+    "name": "Wraps",
+    "slug": "wraps",
+    "description": null,
+    "order": 7
+  },
+  {
+    "name": "Garlic Bread",
+    "slug": "garlic-bread",
+    "description": null,
+    "order": 8
+  },
+  {
+    "name": "Tacos",
+    "slug": "tacos",
+    "description": null,
+    "order": 9
+  },
+  {
+    "name": "Zingy Parcel",
+    "slug": "zingy-parcel",
+    "description": null,
+    "order": 10
+  },
+  {
+    "name": "Sides & Snacks",
+    "slug": "sides-snacks",
+    "description": null,
+    "order": 11
+  },
+  {
+    "name": "Shakes & Drinks",
+    "slug": "shakes-drinks",
+    "description": null,
+    "order": 12
+  }
+]

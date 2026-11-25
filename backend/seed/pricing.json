@@ -1,0 +1,35 @@
+{
+  "sizes": [
+    {
+      "label": "Small",
+      "sub": "7\"",
+      "price": 0
+    },
+    {
+      "label": "Medium",
+      "sub": "10\"",
+      "price": 60
+    },
+    {
+      "label": "Large",
+      "sub": "13\"",
+      "price": 120
+    }
+  ],
+  "addons": [
+    {
+      "name": "Extra cheese",
+      "price": 30
+    },
+    {
+      "name": "Jalapeños",
+      "price": 20
+    },
+    {
+      "name": "Extra chicken",
+      "price": 60
+    }
+  ],
+  "deliveryFee": 30,
+  "freeDeliveryOver": 399
+}
