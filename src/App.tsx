@@ -56,6 +56,46 @@ type CartItem = MenuItem & {
   qty: number;
 };
 
+type KitchenOrderStatus = "New" | "Preparing" | "Out for delivery" | "Delivered" | "Cancelled";
+type PaymentMethod = "Cash on delivery" | "UPI";
+type PaymentStatus = "Pending" | "Paid";
+
+type KitchenOrderItem = {
+  itemId: string;
+  name: string;
+  image: string;
+  veg: boolean;
+  qty: number;
+  size?: string;
+  addons: string[];
+  unitPrice: number;
+};
+
+type KitchenOrder = {
+  id: string;
+  createdAt: string;
+  elapsedMinutes: number;
+  estimatedDelivery: string;
+  status: KitchenOrderStatus;
+  customer: {
+    name: string;
+    phone: string;
+    hostel: string;
+    room: string;
+    landmark: string;
+  };
+  items: KitchenOrderItem[];
+  subtotal: number;
+  deliveryFee: number;
+  discount: number;
+  total: number;
+  payment: {
+    method: PaymentMethod;
+    status: PaymentStatus;
+  };
+  notes?: string;
+};
+
 const image = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&q=88`;
 
 const foodImages = {
@@ -979,6 +1019,234 @@ const menuItemsById = (...ids: string[]) =>
     .map((id) => menuItems.find((item) => item.id === id))
     .filter((item): item is MenuItem => Boolean(item));
 
+const kitchenOrderItem = (
+  itemId: string,
+  qty: number,
+  size = "",
+  selectedAddons: string[] = [],
+): KitchenOrderItem => {
+  const item = menuItems.find((menuItem) => menuItem.id === itemId);
+  if (!item) throw new Error(`Unknown kitchen menu item: ${itemId}`);
+
+  const sizePrice =
+    item.productKind === "full-pizza"
+      ? (sizes.find((option) => option.label === size)?.price ?? 0)
+      : 0;
+  const addonPrice = selectedAddons.reduce(
+    (total, addonName) => total + (addons.find((addon) => addon.name === addonName)?.price ?? 0),
+    0,
+  );
+
+  return {
+    itemId,
+    name: item.name,
+    image: item.image,
+    veg: item.veg,
+    qty,
+    size: size || undefined,
+    addons: selectedAddons,
+    unitPrice: item.price + sizePrice + addonPrice,
+  };
+};
+
+type KitchenOrderDraft = Omit<KitchenOrder, "subtotal" | "deliveryFee" | "discount" | "total"> & {
+  discount?: number;
+  deliveryFee?: number;
+};
+
+const createKitchenOrder = ({
+  items,
+  discount = 0,
+  deliveryFee,
+  ...order
+}: KitchenOrderDraft): KitchenOrder => {
+  const subtotal = items.reduce((total, item) => total + item.unitPrice * item.qty, 0);
+  const delivery = deliveryFee ?? (subtotal >= 399 ? 0 : 30);
+  return {
+    ...order,
+    items,
+    subtotal,
+    deliveryFee: delivery,
+    discount,
+    total: subtotal + delivery - discount,
+  };
+};
+
+const kitchenOrderFixtures: KitchenOrder[] = [
+  createKitchenOrder({
+    id: "DLT-2481",
+    createdAt: "11:46 PM",
+    elapsedMinutes: 22,
+    estimatedDelivery: "12:18 AM",
+    status: "New",
+    customer: {
+      name: "Aaryan Sharma",
+      phone: "+91 98765 01422",
+      hostel: "Hostel B",
+      room: "214",
+      landmark: "Blue door near the common room",
+    },
+    items: [
+      kitchenOrderItem("nonveg-pizza-chicken-bbq", 1, "Medium", ["Extra cheese"]),
+      kitchenOrderItem("garlic-cheese", 1),
+      kitchenOrderItem("drink-oreo-shake", 1),
+    ],
+    payment: { method: "Cash on delivery", status: "Pending" },
+    notes: "Extra chilli on the pizza. Please call when you reach the hostel gate.",
+  }),
+  createKitchenOrder({
+    id: "DLT-2483",
+    createdAt: "11:51 PM",
+    elapsedMinutes: 4,
+    estimatedDelivery: "12:24 AM",
+    status: "New",
+    customer: {
+      name: "Mehak Bansal",
+      phone: "+91 98111 00831",
+      hostel: "Girls Hostel",
+      room: "112",
+      landmark: "Reception desk",
+    },
+    items: [
+      kitchenOrderItem("veg-pizza-margherita", 1, "Small"),
+      kitchenOrderItem("taco-veg", 1),
+    ],
+    payment: { method: "UPI", status: "Paid" },
+  }),
+  createKitchenOrder({
+    id: "DLT-2480",
+    createdAt: "11:38 PM",
+    elapsedMinutes: 15,
+    estimatedDelivery: "12:11 AM",
+    status: "Preparing",
+    customer: {
+      name: "Ananya Verma",
+      phone: "+91 99271 55601",
+      hostel: "Girls Hostel",
+      room: "306",
+      landmark: "Beside the study hall",
+    },
+    items: [
+      kitchenOrderItem("veg-pizza-paneer-makhani", 1, "Large", ["Jalapeños"]),
+      kitchenOrderItem("drink-cold-coffee", 2),
+    ],
+    payment: { method: "UPI", status: "Paid" },
+    notes: "No onion, please.",
+  }),
+  createKitchenOrder({
+    id: "DLT-2478",
+    createdAt: "11:30 PM",
+    elapsedMinutes: 23,
+    estimatedDelivery: "12:03 AM",
+    status: "Preparing",
+    customer: {
+      name: "Rohan Sethi",
+      phone: "+91 88609 72684",
+      hostel: "Hostel A",
+      room: "039",
+      landmark: "Ground-floor stairs",
+    },
+    items: [
+      kitchenOrderItem("mania-veg-double-combo", 1),
+      kitchenOrderItem("side-masala-fries", 1),
+    ],
+    discount: 30,
+    payment: { method: "Cash on delivery", status: "Pending" },
+    notes: "Keep the combo boxes separate.",
+  }),
+  createKitchenOrder({
+    id: "DLT-2479",
+    createdAt: "11:27 PM",
+    elapsedMinutes: 26,
+    estimatedDelivery: "12:00 AM",
+    status: "Out for delivery",
+    customer: {
+      name: "Dev Mehta",
+      phone: "+91 74560 12876",
+      hostel: "Hostel C",
+      room: "118",
+      landmark: "Near the basketball court",
+    },
+    items: [
+      kitchenOrderItem("burger-chicken", 2),
+      kitchenOrderItem("side-french-fries", 1),
+      kitchenOrderItem("drink-cold-drink-large", 2),
+    ],
+    payment: { method: "Cash on delivery", status: "Pending" },
+  }),
+  createKitchenOrder({
+    id: "DLT-2477",
+    createdAt: "11:14 PM",
+    elapsedMinutes: 38,
+    estimatedDelivery: "11:47 PM",
+    status: "Delivered",
+    customer: {
+      name: "Ishita Kapoor",
+      phone: "+91 97560 44002",
+      hostel: "Day Scholar",
+      room: "Gate pickup",
+      landmark: "Bidholi main gate",
+    },
+    items: [
+      kitchenOrderItem("nonveg-pizza-pepperoni", 1, "Medium", ["Jalapeños"]),
+      kitchenOrderItem("pasta-red-nonveg", 1),
+    ],
+    payment: { method: "UPI", status: "Paid" },
+  }),
+  createKitchenOrder({
+    id: "DLT-2472",
+    createdAt: "10:49 PM",
+    elapsedMinutes: 63,
+    estimatedDelivery: "11:22 PM",
+    status: "Delivered",
+    customer: {
+      name: "Kabir Jain",
+      phone: "+91 98977 23018",
+      hostel: "Hostel D",
+      room: "205",
+      landmark: "East wing lobby",
+    },
+    items: [
+      kitchenOrderItem("roll-paneer", 2),
+      kitchenOrderItem("drink-strawberry-shake", 2),
+    ],
+    payment: { method: "Cash on delivery", status: "Paid" },
+  }),
+  createKitchenOrder({
+    id: "DLT-2468",
+    createdAt: "10:31 PM",
+    elapsedMinutes: 81,
+    estimatedDelivery: "11:04 PM",
+    status: "Cancelled",
+    customer: {
+      name: "Naman Dutta",
+      phone: "+91 70170 08533",
+      hostel: "Hostel B",
+      room: "119",
+      landmark: "Main entrance",
+    },
+    items: [kitchenOrderItem("veg-pizza-cheese-corn", 1, "Small")],
+    payment: { method: "UPI", status: "Paid" },
+    notes: "Customer cancelled before preparation.",
+  }),
+];
+
+const activeKitchenStatuses: KitchenOrderStatus[] = [
+  "New",
+  "Preparing",
+  "Out for delivery",
+  "Delivered",
+];
+
+const nextKitchenStatus: Partial<Record<KitchenOrderStatus, KitchenOrderStatus>> = {
+  New: "Preparing",
+  Preparing: "Out for delivery",
+  "Out for delivery": "Delivered",
+};
+
+const kitchenItemCount = (order: KitchenOrder) =>
+  order.items.reduce((total, item) => total + item.qty, 0);
+
 function Icon({
   name,
   size = 20,
@@ -1119,6 +1387,7 @@ export default function App() {
   const [customerName, setCustomerName] = useState("");
   const [orderNumber, setOrderNumber] = useState("DLT-2481");
   const [addItemOpen, setAddItemOpen] = useState(false);
+  const [kitchenOrders, setKitchenOrders] = useState<KitchenOrder[]>(kitchenOrderFixtures);
 
   const subtotal = cart.reduce((total, item) => total + item.unitPrice * item.qty, 0);
   const delivery = subtotal === 0 || subtotal >= 399 ? 0 : 30;
@@ -1227,6 +1496,32 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const openKitchenDashboard = () => {
+    setAdminView("dashboard");
+    setPage("admin");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const advanceKitchenOrder = (orderId: string) => {
+    setKitchenOrders((current) =>
+      current.map((order) =>
+        order.id === orderId && nextKitchenStatus[order.status]
+          ? { ...order, status: nextKitchenStatus[order.status] }
+          : order,
+      ),
+    );
+  };
+
+  const markKitchenOrderPaid = (orderId: string) => {
+    setKitchenOrders((current) =>
+      current.map((order) =>
+        order.id === orderId
+          ? { ...order, payment: { ...order.payment, status: "Paid" } }
+          : order,
+      ),
+    );
+  };
+
   if (page === "checkout") {
     return (
       <Checkout
@@ -1283,6 +1578,9 @@ export default function App() {
         onExit={browseMenu}
         addItemOpen={addItemOpen}
         setAddItemOpen={setAddItemOpen}
+        orders={kitchenOrders}
+        onAdvanceOrder={advanceKitchenOrder}
+        onMarkOrderPaid={markKitchenOrderPaid}
       />
     );
   }
@@ -1493,6 +1791,9 @@ export default function App() {
               DILITE<span>.</span>
             </button>
             <p>The late-night kitchen for a hungry Bidholi.</p>
+            <button className="admin-link" onClick={openKitchenDashboard}>
+              Kitchen dashboard <Icon name="arrow" size={14} />
+            </button>
           </div>
           <div>
             <h4>On the menu</h4>
@@ -2527,13 +2828,21 @@ function Admin({
   onExit,
   addItemOpen,
   setAddItemOpen,
+  orders,
+  onAdvanceOrder,
+  onMarkOrderPaid,
 }: {
   view: "dashboard" | "orders" | "menu";
   setView: (view: "dashboard" | "orders" | "menu") => void;
   onExit: () => void;
   addItemOpen: boolean;
   setAddItemOpen: (open: boolean) => void;
+  orders: KitchenOrder[];
+  onAdvanceOrder: (orderId: string) => void;
+  onMarkOrderPaid: (orderId: string) => void;
 }) {
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
   const nav = [
     ["dashboard", "Dashboard"],
     ["orders", "Live orders"],
@@ -2563,6 +2872,7 @@ function Admin({
         <button className="exit-admin" onClick={onExit}>
           ← Exit dashboard
         </button>
+        <span className="admin-demo-note">Temporary kitchen data · resets on refresh</span>
       </aside>
       <section className="admin-content">
         <header className="admin-topbar">
@@ -2585,22 +2895,66 @@ function Admin({
             <button>KS</button>
           </div>
         </header>
-        {view === "dashboard" && <AdminDashboard />}
-        {view === "orders" && <LiveOrders />}
+        {view === "dashboard" && (
+          <AdminDashboard
+            orders={orders}
+            onOpenOrder={setSelectedOrderId}
+            onShowOrders={() => setView("orders")}
+          />
+        )}
+        {view === "orders" && <LiveOrders orders={orders} onOpenOrder={setSelectedOrderId} />}
         {view === "menu" && <AdminMenu onAdd={() => setAddItemOpen(true)} />}
       </section>
       {addItemOpen && <AddItemDrawer onClose={() => setAddItemOpen(false)} />}
+      {selectedOrder && (
+        <KitchenOrderDrawer
+          order={selectedOrder}
+          onClose={() => setSelectedOrderId(null)}
+          onAdvance={() => onAdvanceOrder(selectedOrder.id)}
+          onMarkPaid={() => onMarkOrderPaid(selectedOrder.id)}
+        />
+      )}
     </main>
   );
 }
 
-function AdminDashboard() {
+function AdminDashboard({
+  orders,
+  onOpenOrder,
+  onShowOrders,
+}: {
+  orders: KitchenOrder[];
+  onOpenOrder: (orderId: string) => void;
+  onShowOrders: () => void;
+}) {
+  const activeOrders = orders.filter(
+    (order) => order.status !== "Delivered" && order.status !== "Cancelled",
+  );
+  const completedOrders = orders.filter((order) => order.status !== "Cancelled");
+  const revenue = completedOrders.reduce((total, order) => total + order.total, 0);
+  const averageOrderValue = completedOrders.length ? Math.round(revenue / completedOrders.length) : 0;
+  const itemFrequency = orders
+    .filter((order) => order.status !== "Cancelled")
+    .flatMap((order) => order.items)
+    .reduce<Record<string, number>>((frequency, item) => {
+      frequency[item.name] = (frequency[item.name] ?? 0) + item.qty;
+      return frequency;
+    }, {});
+  const [topItem = "—", topItemCount = 0] = Object.entries(itemFrequency).sort(
+    ([, left], [, right]) => right - left,
+  )[0] ?? ["—", 0];
+  const pendingPayments = activeOrders.filter((order) => order.payment.status === "Pending");
+  const pendingAmount = pendingPayments.reduce((total, order) => total + order.total, 0);
+  const priorityOrders = [...activeOrders].sort(
+    (left, right) => right.elapsedMinutes - left.elapsedMinutes,
+  );
   const stats = [
-    ["Today’s revenue", "₹8,460", "+18.2%"],
-    ["Orders today", "34", "+12.4%"],
-    ["Avg. order value", "₹249", "+4.6%"],
-    ["Top item", "Chicken BBQ", "12 orders"],
+    ["Today’s revenue", inr(revenue), `${completedOrders.length} orders billed`],
+    ["In progress", String(activeOrders.length), "Across kitchen & delivery"],
+    ["Avg. order value", inr(averageOrderValue), "Today’s active batch"],
+    ["Top item", topItem, `${topItemCount} portions ordered`],
   ];
+
   return (
     <div className="dashboard-view">
       <div className="stat-grid">
@@ -2663,38 +3017,88 @@ function AdminDashboard() {
           </div>
         </section>
       </div>
+      <div className="kitchen-operations-grid">
+        <section className="kitchen-queue-panel">
+          <header>
+            <div>
+              <p className="eyebrow">
+                <i /> MAKE THESE NEXT
+              </p>
+              <h2>Current kitchen queue</h2>
+            </div>
+            <button onClick={onShowOrders}>
+              Live board <Icon name="arrow" size={15} />
+            </button>
+          </header>
+          <div className="queue-list">
+            {priorityOrders.length ? (
+              priorityOrders.slice(0, 4).map((order) => (
+                <button className="queue-row" key={order.id} onClick={() => onOpenOrder(order.id)}>
+                  <span className={`queue-time ${order.elapsedMinutes >= 20 ? "late" : ""}`}>
+                    {order.elapsedMinutes}m
+                    {order.elapsedMinutes >= 20 && <small>late</small>}
+                  </span>
+                  <span className="queue-order">
+                    <b>#{order.id}</b>
+                    <small>
+                      {order.customer.hostel} · {order.customer.room}
+                    </small>
+                  </span>
+                  <span className="queue-items">
+                    {kitchenItemCount(order)} items
+                    <small>{order.items.map((item) => item.name).join(", ")}</small>
+                  </span>
+                  <strong>{inr(order.total)}</strong>
+                  <StatusPill status={order.status} />
+                </button>
+              ))
+            ) : (
+              <AdminEmpty icon="check" title="Kitchen is clear." text="New orders will appear here." />
+            )}
+          </div>
+        </section>
+        <section className="payment-watch-panel">
+          <header>
+            <div>
+              <p className="eyebrow">
+                <i /> COLLECTION WATCH
+              </p>
+              <h2>Pending payment</h2>
+            </div>
+            <strong>{inr(pendingAmount)}</strong>
+          </header>
+          {pendingPayments.length ? (
+            <div className="payment-watch-list">
+              {pendingPayments.map((order) => (
+                <button key={order.id} onClick={() => onOpenOrder(order.id)}>
+                  <span>
+                    <b>#{order.id}</b>
+                    <small>{order.customer.name}</small>
+                  </span>
+                  <span>
+                    <PaymentPill payment={order.payment} />
+                    <strong>{inr(order.total)}</strong>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <AdminEmpty icon="check" title="All caught up." text="No cash or UPI collection due." />
+          )}
+        </section>
+      </div>
       <section className="recent-orders">
         <header>
           <div>
             <h2>Fresh from the counter</h2>
             <p>Latest orders right now</p>
           </div>
-          <button>
-            View all <Icon name="arrow" size={15} />
-          </button>
+          <button onClick={onShowOrders}>View all <Icon name="arrow" size={15} /></button>
         </header>
         <div>
-          <OrderRow
-            id="DLT-2481"
-            name="Aaryan Sharma"
-            room="Hostel B · 214"
-            total="₹480"
-            status="New"
-          />
-          <OrderRow
-            id="DLT-2480"
-            name="Ananya Verma"
-            room="Girls Hostel · 112"
-            total="₹320"
-            status="Preparing"
-          />
-          <OrderRow
-            id="DLT-2479"
-            name="Dev Mehta"
-            room="Hostel A · 039"
-            total="₹390"
-            status="Out for delivery"
-          />
+          {orders.slice(0, 5).map((order) => (
+            <OrderRow key={order.id} order={order} onOpenOrder={onOpenOrder} />
+          ))}
         </div>
       </section>
     </div>
@@ -2702,85 +3106,305 @@ function AdminDashboard() {
 }
 
 function OrderRow({
-  id,
-  name,
-  room,
-  total,
-  status,
+  order,
+  onOpenOrder,
 }: {
-  id: string;
-  name: string;
-  room: string;
-  total: string;
-  status: string;
+  order: KitchenOrder;
+  onOpenOrder: (orderId: string) => void;
 }) {
   return (
-    <article className="admin-order-row">
-      <span className={`order-status-dot ${status.toLowerCase().replaceAll(" ", "-")}`} />
-      <b>#{id}</b>
+    <button className="admin-order-row" onClick={() => onOpenOrder(order.id)}>
+      <span className={`order-status-dot ${order.status.toLowerCase().replaceAll(" ", "-")}`} />
+      <b>#{order.id}</b>
       <span>
-        {name}
-        <small>{room}</small>
+        {order.customer.name}
+        <small>
+          {order.customer.hostel} · {order.customer.room}
+        </small>
       </span>
-      <span>3 items</span>
-      <strong>{total}</strong>
-      <em className={status.toLowerCase().replaceAll(" ", "-")}>{status}</em>
-      <button>
+      <span>{kitchenItemCount(order)} items</span>
+      <strong>{inr(order.total)}</strong>
+      <StatusPill status={order.status} />
+      <span className="order-row-payment">
+        <PaymentPill payment={order.payment} />
+      </span>
+      <span className="order-row-chevron">
         <Icon name="chevron" size={16} />
-      </button>
-    </article>
+      </span>
+    </button>
   );
 }
 
-function LiveOrders() {
-  const columns = [
-    ["New", ["DLT-2481", "DLT-2483"]],
-    ["Preparing", ["DLT-2480", "DLT-2478"]],
-    ["Out for delivery", ["DLT-2479"]],
-    ["Delivered", ["DLT-2477"]],
-  ] as const;
+function LiveOrders({
+  orders,
+  onOpenOrder,
+}: {
+  orders: KitchenOrder[];
+  onOpenOrder: (orderId: string) => void;
+}) {
+  const ordersInProgress = orders.filter((order) => order.status !== "Cancelled");
   return (
     <div className="live-orders-view">
       <div className="board-meta">
         <span>
-          <i className="live-dot" /> 6 orders being worked on
+          <i className="live-dot" />{" "}
+          {orders.filter(
+            (order) =>
+              order.status === "New" ||
+              order.status === "Preparing" ||
+              order.status === "Out for delivery",
+          ).length}{" "}
+          orders being worked on
         </span>
-        <button className="button secondary">Refresh board</button>
+        <span className="demo-board-note">Temporary data · updates reset on refresh</span>
       </div>
       <div className="kanban">
-        {columns.map(([title, orders]) => (
-          <section key={title}>
+        {activeKitchenStatuses.map((status) => {
+          const statusOrders = ordersInProgress.filter((order) => order.status === status);
+          return (
+          <section key={status}>
             <header>
-              <h2>{title}</h2>
-              <span>{orders.length}</span>
+              <h2>{status}</h2>
+              <span>{statusOrders.length}</span>
             </header>
             <div>
-              {orders.map((id, index) => (
-                <article className="kanban-card" key={id}>
+              {statusOrders.length ? (
+                statusOrders.map((order) => (
+                <button className="kanban-card" key={order.id} onClick={() => onOpenOrder(order.id)}>
                   <div>
-                    <b>#{id}</b>
-                    <span className={index === 0 && title !== "Delivered" ? "hot-timer" : ""}>
-                      {index === 0 && title !== "Delivered" ? "22 min" : "8 min"}
+                    <b>#{order.id}</b>
+                    <span className={order.elapsedMinutes >= 20 ? "hot-timer" : ""}>
+                      {order.elapsedMinutes} min{order.elapsedMinutes >= 20 ? " · late" : ""}
                     </span>
                   </div>
                   <strong>
-                    {index % 2 === 0 ? "₹480" : "₹320"}{" "}
-                    <small>· {index % 2 === 0 ? "4" : "2"} items</small>
+                    {inr(order.total)} <small>· {kitchenItemCount(order)} items</small>
                   </strong>
-                  <p>{index % 2 === 0 ? "Hostel B · Room 214" : "Girls Hostel · Room 112"}</p>
+                  <p>
+                    {order.customer.name} · {order.customer.hostel} · {order.customer.room}
+                  </p>
                   <div className="kanban-food">
-                    <img
-                      src={index % 2 === 0 ? foodImages.chickenPizza : foodImages.pastaRed}
-                      alt=""
-                    />
-                    <span>{index % 2 === 0 ? "Chicken BBQ + 3" : "Red Sauce Pasta + 1"}</span>
+                    <img src={order.items[0]?.image} alt="" />
+                    <span>
+                      {order.items[0]?.name}
+                      {order.items.length > 1 ? ` + ${order.items.length - 1}` : ""}
+                    </span>
+                    <PaymentPill payment={order.payment} />
                   </div>
-                </article>
+                </button>
+                ))
+              ) : (
+                <AdminEmpty icon="bag" title="Nothing here." text="Orders will flow in when ready." />
+              )}
+            </div>
+          </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: KitchenOrderStatus }) {
+  return <span className={`kitchen-pill status-${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>;
+}
+
+function PaymentPill({ payment }: { payment: KitchenOrder["payment"] }) {
+  return (
+    <span className={`kitchen-pill payment-${payment.status.toLowerCase()}`}>
+      {payment.status === "Paid" ? "Paid" : "Due"} · {payment.method === "UPI" ? "UPI" : "COD"}
+    </span>
+  );
+}
+
+function AdminEmpty({
+  icon,
+  title,
+  text,
+}: {
+  icon: Extract<IconName, "bag" | "check">;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="admin-empty-state">
+      <Icon name={icon} size={17} />
+      <span>
+        <b>{title}</b>
+        <small>{text}</small>
+      </span>
+    </div>
+  );
+}
+
+function KitchenOrderDrawer({
+  order,
+  onClose,
+  onAdvance,
+  onMarkPaid,
+}: {
+  order: KitchenOrder;
+  onClose: () => void;
+  onAdvance: () => void;
+  onMarkPaid: () => void;
+}) {
+  const nextStatus = nextKitchenStatus[order.status];
+  const phoneLink = order.customer.phone.replace(/\D/g, "");
+  const timeline = ["New", "Preparing", "Out for delivery", "Delivered"] as KitchenOrderStatus[];
+  const currentStatusIndex = timeline.indexOf(order.status);
+
+  return (
+    <div className="kitchen-drawer-layer" role="presentation" onMouseDown={onClose}>
+      <div className="kitchen-drawer-scrim" />
+      <aside
+        className="kitchen-order-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="kitchen-order-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="order-drawer-header">
+          <div>
+            <p className="eyebrow">
+              <i /> ORDER DETAIL
+            </p>
+            <button
+              className="drawer-order-id"
+              onClick={() => navigator.clipboard?.writeText(order.id)}
+              id="kitchen-order-title"
+            >
+              #{order.id} <Icon name="copy" size={14} />
+            </button>
+            <span>
+              {order.createdAt} · {order.elapsedMinutes} min ago
+              {order.elapsedMinutes >= 20 && <b> · running late</b>}
+            </span>
+          </div>
+          <div>
+            <StatusPill status={order.status} />
+            <button className="close-button in-header" onClick={onClose} aria-label="Close order detail">
+              <Icon name="close" />
+            </button>
+          </div>
+        </header>
+
+        <div className="order-drawer-body">
+          <section className="order-customer-panel">
+            <div className="order-section-label">
+              <span>DELIVERY TO</span>
+              <strong>Arriving by {order.estimatedDelivery}</strong>
+            </div>
+            <h2>{order.customer.name}</h2>
+            <a href={`tel:${phoneLink}`} className="customer-phone">
+              <Icon name="phone" size={15} /> {order.customer.phone}
+            </a>
+            <p>
+              <b>{order.customer.hostel}</b> · Room {order.customer.room}
+              <br />
+              {order.customer.landmark}
+            </p>
+            <div className="customer-contact-actions">
+              <a href={`tel:${phoneLink}`} className="button secondary">
+                <Icon name="phone" size={15} /> Call
+              </a>
+              <a href={`https://wa.me/${phoneLink}`} className="button ghost whatsapp-button">
+                <Icon name="whatsapp" size={16} /> WhatsApp
+              </a>
+            </div>
+          </section>
+
+          {order.notes && (
+            <section className="kitchen-note-panel">
+              <span>ORDER NOTE</span>
+              <p>{order.notes}</p>
+            </section>
+          )}
+
+          <section className="order-items-panel">
+            <div className="order-section-label">
+              <span>KITCHEN ITEMS</span>
+              <strong>{kitchenItemCount(order)} pieces</strong>
+            </div>
+            {order.items.map((item) => (
+              <article className="kitchen-line-item" key={`${order.id}-${item.itemId}-${item.size}`}>
+                <img src={item.image} alt="" />
+                <div>
+                  <p>
+                    <VegMark veg={item.veg} /> <b>{item.qty} × {item.name}</b>
+                  </p>
+                  <small>{[item.size, ...item.addons].filter(Boolean).join(" · ") || "Standard"}</small>
+                  <span>{inr(item.unitPrice)} each</span>
+                </div>
+                <strong>{inr(item.qty * item.unitPrice)}</strong>
+              </article>
+            ))}
+          </section>
+
+          <section className="kitchen-bill">
+            <div className="order-section-label">
+              <span>BILL SUMMARY</span>
+              <PaymentPill payment={order.payment} />
+            </div>
+            <p>
+              <span>Subtotal</span>
+              <strong>{inr(order.subtotal)}</strong>
+            </p>
+            {order.discount > 0 && (
+              <p className="bill-discount">
+                <span>Discount</span>
+                <strong>−{inr(order.discount)}</strong>
+              </p>
+            )}
+            <p>
+              <span>Delivery</span>
+              <strong className={order.deliveryFee === 0 ? "success-text" : ""}>
+                {order.deliveryFee === 0 ? "FREE" : inr(order.deliveryFee)}
+              </strong>
+            </p>
+            <p>
+              <span>Taxes</span>
+              <strong>Included</strong>
+            </p>
+            <div>
+              <span>Total bill</span>
+              <strong>{inr(order.total)}</strong>
+            </div>
+          </section>
+
+          <section className="order-timeline-panel">
+            <span>ORDER PROGRESS</span>
+            <div>
+              {timeline.map((status, index) => (
+                <div
+                  key={status}
+                  className={`${index <= currentStatusIndex ? "complete" : ""} ${index === currentStatusIndex ? "current" : ""}`}
+                >
+                  <i>{index < currentStatusIndex || order.status === "Delivered" ? <Icon name="check" size={11} /> : null}</i>
+                  <b>{status}</b>
+                </div>
               ))}
             </div>
           </section>
-        ))}
-      </div>
+        </div>
+
+        <footer className="order-drawer-actions">
+          {order.payment.status === "Pending" && (
+            <button className="button secondary" onClick={onMarkPaid}>
+              <Icon name="check" size={16} /> Mark paid
+            </button>
+          )}
+          {nextStatus && (
+            <button className="button primary" onClick={onAdvance}>
+              Mark as {nextStatus} <Icon name="arrow" size={17} />
+            </button>
+          )}
+          {!nextStatus && order.status === "Delivered" && (
+            <span className="drawer-complete-message">
+              <Icon name="check" size={15} /> Order completed
+            </span>
+          )}
+        </footer>
+      </aside>
     </div>
   );
 }
