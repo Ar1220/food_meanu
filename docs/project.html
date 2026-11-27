@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dilite — Food Menu & Ordering System (Project Document)</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font: 11.5pt/1.55 "Segoe UI", -apple-system, Roboto, sans-serif;
+    color: #1a1a1a; margin: 0;
+  }
+  header.cover {
+    background: #141110; color: #f6f1ee; padding: 26px 24px; border-radius: 10px;
+    margin-bottom: 22px;
+  }
+  header.cover h1 { font-size: 26pt; margin: 0 0 4px; letter-spacing: -0.5px; }
+  header.cover p { margin: 0; color: #b3a9a3; font-size: 10.5pt; }
+  header.cover a { color: #ff6b2c; text-decoration: none; font-weight: 600; }
+  h2 {
+    font-size: 13pt; margin: 20px 0 8px; padding-bottom: 5px;
+    border-bottom: 2px solid #ff6b2c; letter-spacing: -0.2px;
+  }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 10.5pt; margin-bottom: 10px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e2ded9; vertical-align: top; }
+  th { background: #f5f2ef; font-weight: 600; }
+  code { background: #f2efec; padding: 1px 5px; border-radius: 4px; font-size: 10pt; }
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  figure { margin: 0; page-break-inside: avoid; }
+  figure img { width: 100%; border-radius: 6px; border: 1px solid #ddd8d3; display: block; }
+  figcaption { font-size: 9pt; color: #666; padding-top: 4px; }
+  .full { grid-column: 1 / -1; }
+  .note { background: #fff3ec; border-left: 3px solid #ff6b2c; padding: 10px 14px; font-size: 10.5pt; }
+  footer { margin-top: 22px; padding-top: 8px; border-top: 1px solid #ddd8d3; font-size: 9pt; color: #777; }
+  .pagebreak { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <h1>Dilite — Food Menu &amp; Ordering System</h1>
+  <p>A small food-ordering website with a live kitchen dashboard, backed by MongoDB.<br>
+     University mini project · NoSQL half of the SQL / NoSQL pair.</p>
+  <p style="margin-top:10px">GitHub: <a href="https://github.com/Ar1220/food_meanu">https://github.com/Ar1220/food_meanu</a></p>
+</header>
+
+<h2>What it does</h2>
+<ul>
+  <li>Customers browse an <b>85-dish menu</b>, pick size and add-ons, and add to cart.</li>
+  <li>They fill a delivery form (hostel, room, landmark) and place a real order.</li>
+  <li>The order is saved to MongoDB and gets a permanent number like <code>DLT-2482</code>.</li>
+  <li>The kitchen dashboard shows every order on a board: <b>New → Preparing → Out for delivery → Delivered</b>.</li>
+  <li>Kitchen staff move an order forward and mark payments — all saved to the database.</li>
+  <li>Customers can track an order by its number, see their past orders, and download an invoice.</li>
+</ul>
+
+<h2>Tech stack</h2>
+<ul>
+  <li><b>Front end:</b> React 19 + Vite + Tailwind (port 5181)</li>
+  <li><b>API:</b> Node.js + Express (port 3003)</li>
+  <li><b>Database:</b> MongoDB 9 — <code>dilite</code> database (port 27017)</li>
+</ul>
+
+<h2>Database (MongoDB)</h2>
+<table>
+  <tr><th>Collection</th><th>What it holds</th></tr>
+  <tr><td><code>menu_items</code></td><td>85 dishes — name, price, category, veg/non-veg, image, availability</td></tr>
+  <tr><td><code>categories</code></td><td>13 menu categories</td></tr>
+  <tr><td><code>orders</code></td><td>One document per order: customer, items, totals, payment, status history</td></tr>
+  <tr><td><code>settings</code></td><td>Pizza sizes, add-ons, delivery fee</td></tr>
+  <tr><td><code>counters</code></td><td>Order numbering (DLT-2481, DLT-2482, …)</td></tr>
+</table>
+<p class="note">An order is one self-contained document — no joins needed. Line items keep a price
+snapshot, so changing a menu price later never rewrites old bills.</p>
+
+<h2>How to run</h2>
+<ul>
+  <li>Make sure the <b>MongoDB</b> service is running.</li>
+  <li><code>cd backend</code> → <code>npm install</code> → <code>npm run seed</code> → <code>npm start</code></li>
+  <li>In the project folder: <code>npm install</code> → <code>npm run dev</code></li>
+  <li>Or double-click <b>services.cmd</b> and press <b>1</b> to start everything.</li>
+</ul>
+
+<div class="pagebreak"></div>
+<h2>Screenshots</h2>
+<div class="shots">
+  <figure class="full">
+    <img src="../screenshots/02-home-hero.png" alt="Home page">
+    <figcaption>Home page — “Hot. Late. Yours.”</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/03-menu-and-cart.png" alt="Menu and cart">
+    <figcaption>Menu with category filters and the cart drawer</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/01-kitchen-dashboard.png" alt="Kitchen dashboard">
+    <figcaption>Kitchen dashboard — revenue, queue, pending payments</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/04-live-orders-board.png" alt="Live orders board">
+    <figcaption>Live orders board — New / Preparing / Out for delivery / Delivered</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/05-order-detail-drawer.png" alt="Order detail">
+    <figcaption>Order detail drawer — customer, items, bill, status actions</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/06-track-order.png" alt="Track order">
+    <figcaption>Track order — real timeline from the database</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/07-invoice-receipt.png" alt="Invoice">
+    <figcaption>Downloadable / printable invoice</figcaption>
+  </figure>
+</div>
+
+<footer>
+  Dilite · Bidholi, Dehradun · University mini project ·
+  https://github.com/Ar1220/food_meanu
+</footer>
+
+</body>
+</html>
