@@ -235,7 +235,21 @@ order drawer with the full bill, and one-click status advance / mark paid — al
 
 ---
 
-## 10. Screenshots
+## 10. Demo video
+
+A full run through the product: menu → cart → checkout → order saved to MongoDB → kitchen dashboard
+→ live status change → customer tracking → invoice download. Plays on its own, on loop.
+
+![Dilite demo — order placed, kitchen board, tracking and invoice](docs/media/dilite-demo.gif)
+
+_Earlier: place an order in the site, then open **Kitchen dashboard** in another tab — the order appears
+within 5 s and moves as you advance it._
+
+Full-length recording with sound (62 s, 1280p): **[docs/media/dilite-demo.mp4](docs/media/dilite-demo.mp4)**
+
+---
+
+## 11. Screenshots
 
 Full-resolution captures of the running app (MongoDB-backed, live orders).
 
